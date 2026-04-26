@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Cart</title>
+  <style>
+    body {
+      font-family: monospace, monospace;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1, h2 {
+      text-align: center;
+      margin: 0 0 20px;
+    }
+    /* Navigation back to shop */
+    #nav {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #nav a {
+      text-decoration: none;
+      font-weight: bold;
+      color: #333;
+      margin-right: 10px;
+    }
+    #cart-container {
+      margin-bottom: 20px;
+    }
+    .cart-item {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+    .cart-item img {
+      width: 60px;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    .cart-details {
+      flex: 1;
+    }
+    .cart-details h3 {
+      margin: 0 0 4px;
+      font-size: 1.05em;
+    }
+    .cart-details p {
+      margin: 2px 0;
+      font-size: 0.9em;
+      color: #555;
+    }
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .quantity-controls button {
+      background-color: #e0e0e0;
+      border: none;
+      padding: 4px 8px;
+      margin: 0 4px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .quantity-controls span {
+      min-width: 20px;
+      text-align: center;
+    }
+    .remove-button {
+      margin-left: 10px;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    #summary-container {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+    }
+    #summary-container p {
+      margin: 0 0 10px;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    #pay-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+    #pay-button:hover {
+      background-color: #45a049;
+    }
+    /* Payment section */
+    #payment-section {
+      display: none;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-top: 20px;
+    }
+    #payment-section img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 15px;
+    }
+    #order-summary {
+      white-space: pre-wrap;
+      margin-bottom: 10px;
+      font-size: 0.95em;
+      line-height: 1.4;
+    }
+    #wa-pay-link {
+      display: inline-block;
+      background-color: #25D366;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    #wa-pay-link:hover {
+      background-color: #1da94a;
+    }
+  </style>
+</head>
+<body>
+  <div id="nav">
+    <a href="index.html">← Kembali ke Toko</a>
+    <h1>Keranjang Belanja</h1>
+  </div>
+  <div id="cart-container">
+    <!-- Items will be injected here -->
+  </div>
+  <div id="summary-container" style="display:none;">
+    <p id="total-display">Total: Rp 0</p>
+    <button id="pay-button">Bayar</button>
+  </div>
+  <div id="payment-section">
+    <h2>Checkout</h2>
+    <p>Silakan scan kode QR berikut untuk melakukan pembayaran:</p>
+    <img id="qr-image" src="https://via.placeholder.com/300x300?text=QR+Code" alt="QR Code">
+    <h3>Ringkasan Pesanan:</h3>
+    <div id="order-summary"></div>
+    <a id="wa-pay-link" href="#" target="_blank">Kirim Pesan Konfirmasi via WhatsApp</a>
+  </div>
+  <script>
+    // WhatsApp number: ensure it's same as in index.html
+    const whatsappNumber = '6281234567890';
+
+    /**
+     * Format a numeric price to Indonesian Rupiah format with thousands separators.
+     * @param {string|number} price
+     * @returns {string}
+     */
+    function formatRupiah(price) {
+      const number = Number(price);
+      if (isNaN(number)) return price;
+      return 'Rp ' + number.toLocaleString('id-ID');
+    }
+
+    /**
+     * Retrieve cart array from localStorage.
+     * @returns {Array<Object>}
+     */
+    function getCart() {
+      try {
+        const stored = localStorage.getItem('cart');
+        return stored ? JSON.parse(stored) : [];
+      } catch (err) {
+        console.error('Gagal mengambil keranjang:', err);
+        return [];
+      }
+    }
+
+    /**
+     * Save cart array to localStorage.
+     * @param {Array<Object>} cart
+     */
+    function saveCart(cart) {
+      try {
+        localStorage.setItem('cart', JSON.stringify(cart));
+      } catch (err) {
+        console.error('Gagal menyimpan keranjang:', err);
+      }
+    }
+
+    /**
+     * Render cart items on the page.
+     */
+    function renderCart() {
+      const cart = getCart();
+      const container = document.getElementById('cart-container');
+      const summary = document.getElementById('summary-container');
+      if (cart.length === 0) {
+        container.innerHTML = '<p>Keranjang Anda kosong.</p>';
+        summary.style.display = 'none';
+        return;
+      }
+      let html = '';
+      cart.forEach((item, index) => {
+        const subtotal = Number(item.price) * (item.quantity || 0);
+        html += `
+          <div class="cart-item">
+            <img src="${item.photo || ''}" alt="${item.title}">
+            <div class="cart-details">
+              <h3>${item.title}</h3>
+              ${item.author ? `<p>${item.author}</p>` : ''}
+              <p>${formatRupiah(item.price)} x <span>${item.quantity}</span> = <strong>${formatRupiah(subtotal)}</strong></p>
+              <div class="quantity-controls">
+                <button onclick="changeQuantity(${index}, -1)">-</button>
+                <span>${item.quantity}</span>
+                <button onclick="changeQuantity(${index}, 1)">+</button>
+                <button class="remove-button" onclick="removeItem(${index})">Hapus</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+      summary.style.display = 'block';
+      updateTotalDisplay();
+    }
+
+    /**
+     * Change quantity of an item by a delta (±1). Removes item if quantity becomes 0 or less.
+     * @param {number} index
+     * @param {number} delta
+     */
+    function changeQuantity(index, delta) {
+      const cart = getCart();
+      if (!cart[index]) return;
+      cart[index].quantity = (cart[index].quantity || 0) + delta;
+      if (cart[index].quantity <= 0) {
+        cart.splice(index, 1);
+      }
+      saveCart(cart);
+      renderCart();
+    }
+
+    /**
+     * Remove an item entirely from the cart.
+     * @param {number} index
+     */
+    function removeItem(index) {
+      const cart = getCart();
+      cart.splice(index, 1);
+      saveCart(cart);
+      renderCart();
+    }
+
+    /**
+     * Calculate total and update display.
+     */
+    function updateTotalDisplay() {
+      const cart = getCart();
+      const total = cart.reduce((sum, item) => sum + Number(item.price) * (item.quantity || 0), 0);
+      document.getElementById('total-display').textContent = 'Total: ' + formatRupiah(total);
+    }
+
+    /**
+     * Build order summary text and encode message for WhatsApp.
+     * Also displays the payment section.
+     */
+    function handlePay() {
+      const cart = getCart();
+      if (cart.length === 0) {
+        alert('Keranjang kosong. Tambah item terlebih dahulu.');
+        return;
+      }
+      // Calculate summary lines and total
+      let summaryLines = '';
+      let total = 0;
+      cart.forEach((item, idx) => {
+        const subtotal = Number(item.price) * (item.quantity || 0);
+        total += subtotal;
+        summaryLines += `${idx + 1}. ${item.title} x${item.quantity} - ${formatRupiah(item.price)} = ${formatRupiah(subtotal)}\n`;
+      });
+      summaryLines += `Total: ${formatRupiah(total)}`;
+      // Display the summary in page (human readable)
+      document.getElementById('order-summary').textContent = summaryLines;
+      // Prepare WhatsApp message (URL encoded). Use \n replaced by %0A
+      const waMessage = encodeURIComponent(`Halo, saya ingin memesan:\n${summaryLines}\nSaya telah melakukan pembayaran. Mohon konfirmasi.`);
+      document.getElementById('wa-pay-link').href = `https://wa.me/${whatsappNumber}?text=${waMessage}`;
+      // Show payment section
+      document.getElementById('payment-section').style.display = 'block';
+    }
+
+    // Attach event listeners
+    document.getElementById('pay-button').addEventListener('click', handlePay);
+
+    // Initial render
+    renderCart();
+  </script>
+</body>
+</html>
